@@ -18,6 +18,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
+
 @RestController
 public class ProductController {
 
@@ -33,7 +36,16 @@ public class ProductController {
 
     @GetMapping("/products")
     public ResponseEntity<List<ProductModel>> findAll() {
-        return ResponseEntity.status(HttpStatus.OK).body(productRepository.findAll());
+        List<ProductModel> productList = productRepository.findAll();
+
+        if(!productList.isEmpty()) {
+            for (ProductModel product : productList) {
+                UUID id = product.getId();
+                product.add(linkTo(methodOn(ProductController.class).findById(id)).withSelfRel());
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body(productList);
     }
 
     @GetMapping("/products/{id}")
@@ -44,11 +56,13 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Product not found");
         }
 
+        product.get().add(linkTo(methodOn(ProductController.class).findAll()).withRel("Product List"));
+
         return ResponseEntity.status(HttpStatus.OK).body(product.get());
     }
 
     @PutMapping("/products/{id}")
-    public ResponseEntity<Object> findById(@PathVariable(value="id") UUID id, @RequestBody @Valid ProductUpdateRequest productUpdateRequest) {
+    public ResponseEntity<Object> updateById(@PathVariable(value="id") UUID id, @RequestBody @Valid ProductUpdateRequest productUpdateRequest) {
         Optional<ProductModel> product = productRepository.findById(id);
 
         if(product.isEmpty()) {
